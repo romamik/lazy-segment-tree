@@ -60,17 +60,17 @@ class LazySegmentTree:
     def _apply_lazy(self, index: int):
         # update range is 0..node_right, covering whole ranges of children, update value is unapplied previous updates stored in lazy
         left_child, right_child = self._children(index)
-        _, node_right = self._range(index)
-        self._update_range(left_child, node_right, self.lazy[index])
-        self._update_range(right_child, node_right, self.lazy[index])
+        node_left, node_right = self._range(index)
+        self._update_range(left_child, node_left, node_right, self.lazy[index])
+        self._update_range(right_child, node_left, node_right, self.lazy[index])
         self.lazy[index] = 0
 
     # apply update to the node at index 
     # update range is [0..right), update is adding delta to all elements in range
-    def _update_range(self, index: int, update_right: int, delta: int):
+    def _update_range(self, index: int, update_left: int, update_right: int, delta: int):
         node_left, node_right = self._range(index)
 
-        if node_left >= update_right:
+        if node_right <= update_left or node_left >= update_right:
             # node is not affected by update
             return
         
@@ -79,7 +79,7 @@ class LazySegmentTree:
             self.max[index] += delta
             return
         
-        if node_right <= update_right:
+        if node_left >= update_left and node_right <= update_right:
             # node is fully in update range
             # just save in lazy
             self.min[index] += delta
@@ -101,7 +101,7 @@ class LazySegmentTree:
         for child in [left_child, right_child]:
             child_l, child_r = self._range(child)
             if child_r-child_l>0:
-                self._update_range(child, update_right, delta)
+                self._update_range(child, update_left, update_right, delta)
                 mins.append(self.min[child])
                 maxs.append(self.max[child])
         self.min[index] = min(mins)
@@ -147,8 +147,8 @@ class LazySegmentTree:
 
 
     # update the range [0..right), by adding delta to it, delta should be -1 or +1
-    def update_range(self, update_right: int, delta: int):
-        self._update_range(self._root(), update_right, delta)
+    def update_range(self, update_left: int, update_right: int, delta: int):
+        self._update_range(self._root(), update_left, update_right, delta)
 
     # find left most leaf with value 0
     def find_left_most_0(self) -> int:
@@ -205,12 +205,12 @@ class TestLazySegmentTree(unittest.TestCase):
         for (op, *args) in ops:
             executed_ops.append((op, *args))
             if op == "update":
-                right, delta = args
+                left, right, delta = args
                 # brute array update
-                for i in range(right):
+                for i in range(left, right):
                     arr[i] += delta
                 # tree update
-                st.update_range(right, delta)
+                st.update_range(left, right, delta)
 
                 tree_clone =st.clone()
                 tree_clone.apply_all_lazy()
@@ -258,8 +258,9 @@ class TestLazySegmentTree(unittest.TestCase):
         for _ in range(num_ops):
             if random.random() < 0.6:  # ~60% updates, 40% queries
                 right = random.randint(0, n)
+                left = random.randint(0, right)
                 delta = random.choice([-1, +1])
-                ops.append(("update", right, delta))
+                ops.append(("update", left, right, delta))
             else:
                 ops.append(("query",))
 
@@ -267,7 +268,7 @@ class TestLazySegmentTree(unittest.TestCase):
     
     def test_simple(self):
         self.run_operations([
-            ('update', 7, -1),
+            ('update', 0, 7, -1),
             ("query"),
             ], 
             20)
