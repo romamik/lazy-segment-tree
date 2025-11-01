@@ -28,14 +28,9 @@ class LazySegmentTree:
         self.max = [0]*arr_len
         self.lazy = [0]*arr_len
         self.first_leaf_index = self.N-1
+        # precompute ranges
+        self.ranges = [self._compute_range(i) for i in range(arr_len)]
 
-    # working with indices, if root is 1, then children are index*2+1 and index*2+2, but we want zero based
-    def _root(self) -> int:
-        return 0
-    
-    def _children(self, index: int) -> tuple[int, int]:
-        return (index+1)*2-1, (index+1)*2
-        
     # range that node at index represents
     # root represents whole array 0..N
     # at each level array is evenly subdivided between children
@@ -43,14 +38,24 @@ class LazySegmentTree:
     # level 1  1:0..N/2, 2:N/2..N
     # level 2  3:0..N/4, 4:N/4..2N/4, 5:2N/4..3N/4, 6:4N/4..N
     # the returned range is [left..right)
-    def _range(self, index: int) -> tuple[int, int]:
+    def _compute_range(self, index: int) -> tuple[int,int]:
         level = (index+1).bit_length() - 1
         index0 = (1 << level) - 1
         index_in_level = index - index0
         total_in_level = 1 << level
         left = index_in_level * self.N // total_in_level
         right = (index_in_level + 1) * self.N // total_in_level
-        return (min(self.n, left), min(self.n, right))
+        return min(self.n, left), min(self.n, right)
+
+    def _range(self, index: int) -> tuple[int,int]:
+        return self.ranges[index]
+
+    # working with indices, if root is 1, then children are index*2+1 and index*2+2, but we want zero based
+    def _root(self) -> int:
+        return 0
+    
+    def _children(self, index: int) -> tuple[int, int]:
+        return (index+1)*2-1, (index+1)*2        
     
     def _is_leaf(self, index: int) -> bool:
         return index >= self.first_leaf_index
